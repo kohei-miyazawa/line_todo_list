@@ -28,6 +28,9 @@ class LineBotController < ApplicationController
           when "一覧"
             tasks = user.tasks
             list(tasks)
+          when "完了"
+            user.tasks.destroy_all
+            destroy_all_message
           when /削除[\s|　]*\d+/
             index = message.gsub(/削除[\s|　]*/, "").strip.to_i
             tasks = user.tasks.to_a
@@ -87,5 +90,9 @@ class LineBotController < ApplicationController
 
     def create_message(message, count)
       "お買い物リスト: 「#{message}」 を登録しました！\n登録されている商品は#{count}個です！"
+    end
+
+    def destroy_all_message
+      "お買物リストをすべて削除しました。早く帰ってご飯にしよう！"
     end
 end
