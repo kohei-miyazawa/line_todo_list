@@ -17,6 +17,8 @@ class LineBotController < ApplicationController
     events = client.parse_events_from(body)
 
     events.each do |event|
+      user_id = event["source"]["user_id"]
+      user = User.find_by(uid: user_id) || User.create(uid: user_id)
       # LINE からテキストが送信された場合
       if (event.type === Line::Bot::Event::MessageType::Text)
         message = event["message"]["text"]
@@ -24,20 +26,22 @@ class LineBotController < ApplicationController
         text =
           case message
           when "一覧"
-            tasks = Task.all
-            tasks.map.with_index(1) { |task, index| "#{index}: #{task.body}" }.join("\n")
+            tasks = user.tasks
+            list(tasks)
           when /削除[\s|　]*\d+/
             index = message.gsub(/削除[\s|　]*/, "").strip.to_i
-            tasks = Task.all.to_a
+            tasks = user.tasks.to_a
             if task = tasks.find.with_index(1) { |_task, _index| index == _index }
-              task.destroy!
-              "タスク #{index}: 「#{task.body}」 を削除しました！"
+              task.destroy
+              task_count = user.tasks.count
+              delete_message(task, index, task_count)
             else
-              "削除対象のタスクが見つかりませんでした。"
+              "#{index}番の商品が見つかりませんでした。"
             end
           else
-            Task.create!(body: message)
-            "タスク: 「#{message}」 を登録しました！"
+            user.tasks.create!(body: message)
+            task_count = user.tasks.count
+            create_message(message, task_count)
           end
 
         reply_message = {
@@ -59,5 +63,29 @@ class LineBotController < ApplicationController
         config.channel_secret = ENV["LINE_CHANNEL_SECRET"]
         config.channel_token = ENV["LINE_CHANNEL_TOKEN"]
       end
+    end
+
+    def list(items)
+      title =
+        if items.count.zero?
+          "現在登録されているお買物リストはございません！"
+        else
+          "お買物リストの一覧です！\n\n"
+        end
+      title + items.map.with_index(1) { |item, index| "#{index}: #{item.body}" }.join("\n")
+    end
+
+    def delete_message(item, index, count)
+      count_message =
+        if count.zero?
+          "残りのお買い物リストはございません。帰ってご飯にしよう！"
+        else
+          "残りのお買物リストは#{count}個です。頑張りましょう！"
+        end
+      "お買物リスト #{index}: 「#{item.body}」 を削除しました！\n" + count_message
+    end
+
+    def create_message(message, count)
+      "お買い物リスト: 「#{message}」 を登録しました！\n登録されている商品は#{count}個です！"
     end
 end
