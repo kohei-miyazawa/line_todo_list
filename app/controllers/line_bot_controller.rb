@@ -19,6 +19,8 @@ class LineBotController < ApplicationController
     events.each do |event|
       user_id = event["source"]["userId"]
       user = User.find_by(uid: user_id) || User.create(uid: user_id)
+
+      user = User.find_by(uid: "share") if user.uid = ENV["UID_PAPA"] || ENV["UID_MAMA"]
       # LINE からテキストが送信された場合
       if (event.type === Line::Bot::Event::MessageType::Text)
         message = event["message"]["text"]
