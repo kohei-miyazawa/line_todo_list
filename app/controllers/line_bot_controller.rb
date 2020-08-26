@@ -25,10 +25,10 @@ class LineBotController < ApplicationController
 
         text =
           case message
-          when "一覧"
+          when "ぜんぶ"
             tasks = user.tasks
             list(tasks)
-          when "完了"
+          when "おわり"
             user.tasks.destroy_all
             destroy_all_message
           when /削除[\s|　]*\d+/
@@ -39,7 +39,7 @@ class LineBotController < ApplicationController
               task_count = user.tasks.count
               delete_message(task, index, task_count)
             else
-              "#{index}番の商品が見つかりませんでした。"
+              "#{index}番の商品が見つからなかったよ。"
             end
           else
             user.tasks.create!(body: message)
@@ -71,9 +71,9 @@ class LineBotController < ApplicationController
     def list(items)
       title =
         if items.count.zero?
-          "現在登録されているお買物リストはございません！"
+          "いま登録されているお買物リストはないよ！"
         else
-          "お買物リストの一覧です！\n\n"
+          "お買物リストの一覧だよ！\n\n"
         end
       title + items.map.with_index(1) { |item, index| "#{index}: #{item.body}" }.join("\n")
     end
@@ -81,18 +81,18 @@ class LineBotController < ApplicationController
     def delete_message(item, index, count)
       count_message =
         if count.zero?
-          "残りのお買い物リストはございません。帰ってご飯にしよう！"
+          "残りのお買い物リストはないよ！帰ってご飯にしよー！"
         else
-          "残りのお買物リストは#{count}個です。頑張りましょう！"
+          "残りのお買物リストは#{count}個だよ。頑張ろー！"
         end
-      "お買物リスト #{index}: 「#{item.body}」 を削除しました！\n" + count_message
+      "お買物リスト #{index}: 「#{item.body}」 を削除したよ！\n" + count_message
     end
 
     def create_message(message, count)
-      "お買い物リスト: 「#{message}」 を登録しました！\n登録されている商品は#{count}個です！"
+      "お買い物リスト: 「#{message}」 を登録したよ！\nいま登録されている商品は#{count}個だよ！"
     end
 
     def destroy_all_message
-      "お買物リストをすべて削除しました。早く帰ってご飯にしよう！"
+      "お買物リストをぜんぶ削除したよ。早く帰ってご飯にしよー！"
     end
 end
