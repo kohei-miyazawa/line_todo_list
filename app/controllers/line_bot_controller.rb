@@ -73,7 +73,7 @@ class LineBotController < ApplicationController
         if items.count.zero?
           "いま登録されているお買物リストはないよ！"
         else
-          "お買物リストの一覧だよ！\n\n"
+          "お買物リストの一覧だよ！\n買い忘れのないようにね！\n\n"
         end
       title + items.map.with_index(1) { |item, index| "#{index}: #{item.body}" }.join("\n")
     end
