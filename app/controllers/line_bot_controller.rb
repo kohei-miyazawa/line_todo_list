@@ -2,6 +2,7 @@ class LineBotController < ApplicationController
   require "line/bot"
 
   protect_from_forgery with: :null_session
+  Regex = /(?:\p{Hiragana}|\p{Katakana}|[ー－]|[一-龠々]|\w)+/
 
   def callback
     # LINEで送られてきたメッセージのデータを取得
@@ -24,41 +25,46 @@ class LineBotController < ApplicationController
       # LINE からテキストが送信された場合
       if (event.type === Line::Bot::Event::MessageType::Text)
         message = event["message"]["text"]
+        message_list = message.scan(Regex)
+        messages = []
 
-        text =
-          case message
-          when "ぜんぶ"
-            tasks = user.tasks
-            list(tasks)
-          when "おわり"
-            user.tasks.destroy_all
-            destroy_all_message
-          when /削除[\s|　]*\d+/
-            index = message.gsub(/削除[\s|　]*/, "").strip.to_i
-            tasks = user.tasks.to_a
-            if task = tasks.find.with_index(1) { |_task, _index| index == _index }
-              task.destroy
-              task_count = user.tasks.count
-              delete_message(task, index, task_count)
+        message_list.each do |word|
+          text =
+            case word
+            when "ぜんぶ"
+              tasks = user.tasks.all
+              list(tasks)
+            when "おわり"
+              user.tasks.destroy_all
+              destroy_all_message
+            when /削除\d+/
+              index = word.gsub(/削除/, "").to_i
+              tasks = user.tasks.to_a
+              if task = tasks.find.with_index(1) { |_task, _index| index == _index }
+                task.destroy
+                delete_message(task, index)
+              else
+                "#{index}番の商品が見つからなかったよ。"
+              end
             else
-              "#{index}番の商品が見つからなかったよ。"
+              user.tasks.create!(body: word)
+              create_message(word)
             end
-          else
-            user.tasks.create!(body: message)
-            task_count = user.tasks.count
-            create_message(message, task_count)
-          end
 
-        reply_message = {
-          type: "text",
-          text: text
-        }
-        client.reply_message(event["replyToken"], reply_message)
+          reply_message = {
+            type: "text",
+            text: text
+          }
+          messages << reply_message
+        end
+
+        count = user.tasks.count
+        messages << count_message(count) unless message_list.last == "ぜんぶ"
+
+        client.reply_message(event["replyToken"], messages)
+        render json: { status: :ok }
       end
     end
-
-    # LINE の webhook API との連携をするために status code 200 を返す
-    render json: { status: :ok }
   end
 
   private
@@ -80,21 +86,23 @@ class LineBotController < ApplicationController
       title + items.map.with_index(1) { |item, index| "#{index}: #{item.body}" }.join("\n")
     end
 
-    def delete_message(item, index, count)
-      count_message =
-        if count.zero?
-          "残りのお買い物リストはないよ！帰ってご飯にしよー！"
-        else
-          "残りのお買物リストは#{count}個だよ。頑張ろー！"
-        end
-      "お買物リスト #{index}: 「#{item.body}」 を削除したよ！\n" + count_message
+    def delete_message(item, index)
+      "お買物リスト #{index}: 「#{item.body}」 を削除したよ！"
     end
 
-    def create_message(message, count)
-      "お買い物リスト: 「#{message}」 を登録したよ！\nいま登録されている商品は#{count}個だよ！"
+    def create_message(message)
+      "お買い物リスト: 「#{message}」 を登録したよ！"
     end
 
     def destroy_all_message
       "お買物リストをぜんぶ削除したよ。早く帰ってご飯にしよー！"
+    end
+
+    def count_message(count)
+      if count.zero?
+        { type: "text", text: "いま登録されているお買物リストはないよ！" }
+      else
+        { type: "text", text: "いま登録されているお買物リストは#{count}個だよ。買い忘れのないようにね！" }
+      end
     end
 end
